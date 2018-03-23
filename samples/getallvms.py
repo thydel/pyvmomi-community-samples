@@ -39,6 +39,7 @@ def print_vm_info(virtual_machine):
     print("Guest      : ", summary.config.guestFullName)
     print("Instance UUID : ", summary.config.instanceUuid)
     print("Bios UUID     : ", summary.config.uuid)
+    print("Host name     : ", virtual_machine.runtime.host.name)
     annotation = summary.config.annotation
     if annotation:
         print("Annotation : ", annotation)
