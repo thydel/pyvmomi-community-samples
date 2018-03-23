@@ -26,6 +26,7 @@ from pyVmomi import vim
 
 import tools.cli as cli
 
+import re
 
 def print_vm_info(virtual_machine):
     """
@@ -59,13 +60,46 @@ def print_vm_info(virtual_machine):
         print("Question  : ", summary.runtime.question.text)
     print("")
 
+def print_vm_info_as_yaml(virtual_machine):
+    """
+    Print information for a particular virtual machine as yaml
+    """
+    summary = virtual_machine.summary
+    path = summary.config.vmPathName
+    p = re.compile(r'^\[(\w+)\].*$')
+    m = p.match(path)
+    datastore = m.group(1)
+    print("  - { ",                                                       end="")
+    print("id: ",        summary.config.name,               ", ", sep="", end="")
+    print("host: ",      virtual_machine.runtime.host.name, ", ", sep="", end="")
+    print("datastore: ", datastore,                         ", ", sep="", end="")
+    print("uuid: ",      summary.config.instanceUuid,       ", ", sep="", end="")
+    print("template: ",  summary.config.template,           ", ", sep="", end="")
+    print("state: ",     summary.runtime.powerState,              sep="", end="")
+    print(" } ")
+
+
+def get_more_args():
+    """
+    Adds more args to tools func
+    """
+    parser = cli.build_arg_parser()
+
+    parser.add_argument('-y', '--yaml',
+                        required=False,
+                        action='store_true',
+                        help='print as yaml')
+
+    args = parser.parse_args()
+
+    return cli.prompt_for_password(args)
 
 def main():
     """
     Simple command-line program for listing the virtual machines on a system.
     """
 
-    args = cli.get_args()
+    args = get_more_args()
 
     try:
         if args.disable_ssl_verification:
@@ -90,8 +124,14 @@ def main():
             container, viewType, recursive)
 
         children = containerView.view
+        if args.yaml:
+            print("---\n")
+            print("pyvmomy_getallvms:\n")
         for child in children:
-            print_vm_info(child)
+            if args.yaml:
+                print_vm_info_as_yaml(child)
+            else:
+                print_vm_info(child)
 
     except vmodl.MethodFault as error:
         print("Caught vmodl fault : " + error.msg)
