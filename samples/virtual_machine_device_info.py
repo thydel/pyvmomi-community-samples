@@ -186,6 +186,11 @@ def get_args():
                         action='store',
                         help='IP address of the VM to search for')
 
+    parser.add_argument('-S', '--disable_ssl_verification',
+                        required=False,
+                        action='store_true',
+                        help='Disable ssl host certificate verification')
+
     args = parser.parse_args()
 
     password = None
@@ -204,8 +209,12 @@ def get_args():
 args = get_args()
 
 # form a connection...
-si = connect.SmartConnect(host=args.host, user=args.user, pwd=args.password,
-                          port=args.port)
+if args.disable_ssl_verification:
+    si = connect.SmartConnectNoSSL(host=args.host, user=args.user, pwd=args.password,
+                              port=args.port)
+else:
+    si = connect.SmartConnect(host=args.host, user=args.user, pwd=args.password,
+                              port=args.port)
 
 # Note: from daemons use a shutdown hook to do this, not the atexit
 atexit.register(connect.Disconnect, si)
