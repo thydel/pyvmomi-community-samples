@@ -69,12 +69,15 @@ def print_vm_info_as_yaml(virtual_machine):
     p = re.compile(r'^\[(\w+)\].*$')
     m = p.match(path)
     datastore = m.group(1)
+    hardware = virtual_machine.config.hardware
     print("  - { ",                                                       end="")
     print("id: ",        summary.config.name,               ", ", sep="", end="")
     print("host: ",      virtual_machine.runtime.host.name, ", ", sep="", end="")
     print("datastore: ", datastore,                         ", ", sep="", end="")
     print("uuid: ",      summary.config.instanceUuid,       ", ", sep="", end="")
     print("template: ",  summary.config.template,           ", ", sep="", end="")
+    print("cpus: ",      hardware.numCPU,                   ", ", sep="", end="")
+    print("mem: ",       hardware.memoryMB,                 ", ", sep="", end="")
     print("state: ",     summary.runtime.powerState,              sep="", end="")
     print(" } ")
 
