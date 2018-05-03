@@ -191,6 +191,21 @@ def get_args():
                         action='store_true',
                         help='Disable ssl host certificate verification')
 
+    parser.add_argument('-y', '--yaml',
+                        required=False,
+                        action='store_true',
+                        help='print as yaml')
+
+    parser.add_argument('-a', '--all',
+                        required=False,
+                        action='store_true',
+                        help='show all')
+
+    parser.add_argument('-b', '--backing',
+                        required=False,
+                        action='store_true',
+                        help='show only device with backing datastore')
+
     args = parser.parse_args()
 
     password = None
@@ -236,8 +251,12 @@ if not vm:
     print(u"Could not a virtual machine to examine.")
     exit(1)
 
-print(u"Found Virtual Machine")
-print(u"=====================")
+if not args.yaml:
+    print(u"Found Virtual Machine")
+    print(u"=====================")
+else:
+    print("---\n")
+    print("pyvmomy_virtual_machine_device_info:\n")
 details = {'name': vm.summary.config.name,
            'instance UUID': vm.summary.config.instanceUuid,
            'bios UUID': vm.summary.config.uuid,
@@ -247,11 +266,47 @@ details = {'name': vm.summary.config.name,
            'host name': vm.runtime.host.name,
            'last booted timestamp': vm.runtime.bootTime}
 
-for name, value in details.items():
-    print(u"  {0:{width}{base}}: {1}".format(name, value, width=25, base='s'))
+if not args.yaml:
+    for name, value in details.items():
+        print(u"  {0:{width}{base}}: {1}".format(name, value, width=25, base='s'))
 
-print(u"  Devices:")
-print(u"  --------")
+def print_dev_as_yaml():
+    summary = vm.summary
+    print("  - { ",                                                        end="")
+    print("id: ",        summary.config.name,               ", ", sep="",  end="")
+    print("host: ",      vm.runtime.host.name,              ", ", sep="",  end="")
+    if args.all:
+        print("uuid: ",  summary.config.instanceUuid,       ", ", sep="",  end="")
+    print("key: ",       device.key,                        ", ", sep="",  end="")
+    print("summary: ",   device.deviceInfo.summary,         ", ", sep="'", end="")
+    print("type: ",      type(device).__name__,             ", ", sep="",  end="")
+    print("backing: ",   type(device.backing).__name__,     ", ", sep="",  end="")
+    print("state: ",     summary.runtime.powerState,              sep="",  end="")
+
+def print_backing_dev_as_yaml():
+    summary = vm.summary
+    M = 1024**2
+    G = 1024**3
+    print("  - { ",                                                        end="")
+    print("id: ",        summary.config.name,               ", ", sep="",  end="")
+    print("host: ",      vm.runtime.host.name,              ", ", sep="",  end="")
+    if args.all:
+        print("uuid: ",  summary.config.instanceUuid,       ", ", sep="",  end="")
+    print("key: ",       device.key,                        ", ", sep="",  end="")
+    print("size: ",      device.capacityInKB // M,          ", ", sep="",  end="")
+    print("datastore: ", datastore.name,                    ", ", sep="",  end="")
+    print("capacity: ",  datastore.summary.capacity  // G,  ", ", sep="",  end="")
+    print("free: ",      datastore.summary.freeSpace // G,  ", ", sep="",  end="")
+    if args.all:
+        print("filename: ", device.backing.fileName,        ", ", sep="'", end="")
+        print("type: ",      type(device).__name__,         ", ", sep="",  end="")
+        print("backing: ",   type(device.backing).__name__, ", ", sep="",  end="")
+    print("state: ",     summary.runtime.powerState,              sep="",  end="")
+    print(" } ")
+
+if not args.yaml:
+    print(u"  Devices:")
+    print(u"  --------")
 for device in vm.config.hardware.device:
     # diving into each device, we pull out a few interesting bits
     dev_details = {'key': device.key,
@@ -259,13 +314,18 @@ for device in vm.config.hardware.device:
                    'device type': type(device).__name__,
                    'backing type': type(device.backing).__name__}
 
-    print(u"  label: {0}".format(device.deviceInfo.label))
-    print(u"  ------------------")
-    for name, value in dev_details.items():
-        print(u"    {0:{width}{base}}: {1}".format(name, value,
-                                                   width=15, base='s'))
+    if not args.yaml:
+        print(u"  label: {0}".format(device.deviceInfo.label))
+        print(u"  ------------------")
+        for name, value in dev_details.items():
+            print(u"    {0:{width}{base}}: {1}".format(name, value,
+                                                       width=15, base='s'))
+    elif not args.backing:
+        print_dev_as_yaml()
 
     if device.backing is None:
+        if args.yaml and not args.backing:
+            print(" } ")
         continue
 
     # the following is a bit of a hack, but it lets us build a summary
@@ -275,25 +335,34 @@ for device in vm.config.hardware.device:
     if hasattr(device.backing, 'fileName'):
             datastore = device.backing.datastore
             if datastore:
-                print(u"    datastore")
-                print(u"        name: {0}".format(datastore.name))
+                if not args.yaml:
+                    print(u"    datastore")
+                    print(u"        name: {0}".format(datastore.name))
                 # there may be multiple hosts, the host property
                 # is a host mount info type not a host system type
                 # but we can navigate to the host system from there
                 for host_mount in datastore.host:
                     host_system = host_mount.key
-                    print(u"        host: {0}".format(host_system.name))
-                print(u"        summary")
+                    if not args.yaml:
+                        print(u"        host: {0}".format(host_system.name))
+                if not args.yaml:
+                    print(u"        summary")
                 summary = {'capacity': datastore.summary.capacity,
                            'freeSpace': datastore.summary.freeSpace,
                            'file system': datastore.summary.type,
                            'url': datastore.summary.url}
-                for key, val in summary.items():
-                    print(u"            {0}: {1}".format(key, val))
-            print(u"    fileName: {0}".format(device.backing.fileName))
-            print(u"    device ID: {0}".format(device.backing.backingObjectId))
+                if not args.yaml:
+                    for key, val in summary.items():
+                        print(u"            {0}: {1}".format(key, val))
+            if not args.yaml:
+                print(u"    fileName: {0}".format(device.backing.fileName))
+                print(u"    device ID: {0}".format(device.backing.backingObjectId))
+            else:
+                print_backing_dev_as_yaml()
 
-    print(u"  ------------------")
+    if not args.yaml:
+        print(u"  ------------------")
 
-print(u"=====================")
+if not args.yaml:
+    print(u"=====================")
 exit()
