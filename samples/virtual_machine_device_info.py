@@ -18,6 +18,7 @@ from __future__ import print_function
 import atexit
 import argparse
 import getpass
+import os
 
 from pyVim import connect
 
@@ -215,9 +216,12 @@ def get_args():
 
     password = None
     if args.password is None:
-        password = getpass.getpass(
-            prompt='Enter password for host %s and user %s: ' %
-                   (args.host, args.user))
+        if 'PASSWORD' in os.environ:
+            password = os.environ['PASSWORD']
+        else:
+            password = getpass.getpass(
+                prompt='Enter password for host %s and user %s: ' %
+                (args.host, args.user))
 
     args = parser.parse_args()
 
