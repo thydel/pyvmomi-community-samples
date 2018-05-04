@@ -206,6 +206,11 @@ def get_args():
                         action='store_true',
                         help='show only device with backing datastore')
 
+    parser.add_argument('-l', '--listonly',
+                        required=False,
+                        action='store_true',
+                        help='do not wrap list in dict when printing as yaml')
+
     args = parser.parse_args()
 
     password = None
@@ -254,7 +259,7 @@ if not vm:
 if not args.yaml:
     print(u"Found Virtual Machine")
     print(u"=====================")
-else:
+elif not args.listonly:
     print("---\n")
     print("pyvmomy_virtual_machine_device_info:\n")
 details = {'name': vm.summary.config.name,
@@ -272,7 +277,10 @@ if not args.yaml:
 
 def print_dev_as_yaml():
     summary = vm.summary
-    print("  - { ",                                                        end="")
+    if args.listonly:
+        print("- { ",                                                      end="")
+    else:
+        print("  - { ",                                                    end="")
     print("id: ",        summary.config.name,               ", ", sep="",  end="")
     print("host: ",      vm.runtime.host.name,              ", ", sep="",  end="")
     if args.all:
@@ -287,7 +295,10 @@ def print_backing_dev_as_yaml():
     summary = vm.summary
     M = 1024**2
     G = 1024**3
-    print("  - { ",                                                        end="")
+    if args.listonly:
+        print("- { ",                                                      end="")
+    else:
+        print("  - { ",                                                    end="")
     print("id: ",        summary.config.name,               ", ", sep="",  end="")
     print("host: ",      vm.runtime.host.name,              ", ", sep="",  end="")
     if args.all:
